@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+trap cleanup SIGINT SIGTERM ERR
+
+tmp_download_dir=$(mktemp -d)
+
+cleanup() {
+  trap - SIGINT SIGTERM ERR
+  rm -rf "$ASDF_INSTALL_PATH" "$tmp_download_dir"
+  echo
+  echo -e "\e[33mCleanup:\e[m Something went wrong!"
+  echo
+  echo "$(caller): ${BASH_COMMAND}"
+}
+
+fail() {
+  echo -e "\e[31mFail:\e[m $*"
+  exit 1
+}
+
+install_peco() {
+  local install_type=$1
+  local version=$2
+  local install_path=$3
+
+  if [ "$install_type" != "version" ]; then
+    fail "asdf-peco supports release installs only"
+  fi
+
+  local platform
+  local archive_format
+
+  case "$OSTYPE" in
+    darwin*)
+      platform="darwin"
+      archive_format="zip"
+      ;;
+    linux*)
+      platform="linux"
+      archive_format="tar.gz"
+      ;;
+    *) fail "Unsupported platform" ;;
+  esac
+
+  local architecture
+
+  case "$(uname -m)" in
+    aarch64* | arm64) architecture="arm64" ;;
+    armv5* | armv6* | armv7*) architecture="arm" ;;
+    i686*) architecture="386" ;;
+    x86_64*) architecture="amd64" ;;
+    *) fail "Unsupported architecture" ;;
+  esac
+
+  local download_url="https://github.com/peco/peco/releases/download/v${version}/peco_${platform}_${architecture}.${archive_format}"
+  local downloaded_asset_path="${tmp_download_dir}/peco.${archive_format}"
+
+  echo "∗ Downloading and installing peco..."
+  curl --fail --silent --location --create-dirs --output "$downloaded_asset_path" "$download_url"
+  mkdir -p "${install_path}/bin"
+  if [ "$platform" == "darwin" ]; then
+    unzip -j "$downloaded_asset_path" -d "${install_path}/bin"
+  elif [ "$platform" == "linux" ]; then
+    tar zxf "$downloaded_asset_path" -C "${install_path}/bin" --strip-components=1
+  fi
+  chmod +x "${install_path}/bin/peco"
+  echo "The installation was successful!"
+}
+
+install_peco "$ASDF_INSTALL_TYPE" "$ASDF_INSTALL_VERSION" "$ASDF_INSTALL_PATH"
