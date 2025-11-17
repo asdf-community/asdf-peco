@@ -1,17 +1,10 @@
 #!/usr/bin/env bash
 
-set -Eeuo pipefail
+set -euo pipefail
 
-sort_versions() {
-  sed 'h; s/[+-]/./g; s/.p\([[:digit:]]\)/.z\1/; s/$/.z/; G; s/\n/ /' |
-    LC_ALL=C sort -t. -k 1,1 -k 2,2n -k 3,3n -k 4,4n -k 5,5n | awk '{print $2}'
-}
+current_script_path=${BASH_SOURCE[0]}
+plugin_dir=$(dirname "$(dirname "$current_script_path")")
 
-list_all_versions() {
-  git ls-remote --tags --refs https://github.com/peco/peco.git |
-    grep -o 'refs/tags/.*' |
-    cut -d/ -f3- |
-    sed 's/^v//'
-}
+source "${plugin_dir}/lib/utils.bash"
 
 list_all_versions | sort_versions | xargs echo

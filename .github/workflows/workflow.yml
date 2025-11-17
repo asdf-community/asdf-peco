@@ -1,10 +1,10 @@
-name: Main workflow
+name: Builds, tests & co
 
 on:
-  pull_request:
-  push:
-  schedule:
-    - cron: 0 0 * * 5
+  - push
+  - pull_request
+
+permissions: read-all
 
 jobs:
   plugin_test:
@@ -12,66 +12,47 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-latest
           - ubuntu-latest
-
+          - macos-latest
     runs-on: ${{ matrix.os }}
-
     steps:
-      - name: asdf_plugin_test
-        uses: asdf-vm/actions/plugin-test@v1
+      - name: Test plugin
+        uses: asdf-vm/actions/plugin-test@b7bcd026f18772e44fe1026d729e1611cc435d47 # v4.0.1
         with:
           command: peco --version
 
   test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Set up asdf
-        uses: asdf-vm/actions/setup@v1
-
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: Set-up asdf
+        uses: asdf-vm/actions/setup@b7bcd026f18772e44fe1026d729e1611cc435d47 # v4.0.1
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@master
-
-      - name: Install bats
-        run: brew install bats-core
-
+      - name: Install cram
+        run: brew install cram
       - name: Test plugin
         run: |
-          asdf plugin add peco $GITHUB_WORKSPACE
-          make test
+          asdf plugin add peco .
+          cram test
 
   lint:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
-
-      - name: Install shellcheck
-        run: brew install shellcheck
-
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: Install tools
+        uses: asdf-vm/actions/install@b7bcd026f18772e44fe1026d729e1611cc435d47 # v4.0.1
       - name: Run ShellCheck
         run: make lint
 
   format:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
-
-      - name: Install shfmt
-        run: brew install shfmt
-
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: Install tools
+        uses: asdf-vm/actions/install@b7bcd026f18772e44fe1026d729e1611cc435d47 # v4.0.1
       - name: Run shfmt
         run: make fmt-check
