@@ -65,23 +65,30 @@ detect_architecture() {
   esac
 }
 
+detect_archive_format() {
+  case "$(detect_platform)" in
+    darwin) echo "zip" ;;
+    linux) echo "tar.gz" ;;
+  esac
+}
+
 release_filename() {
+  local version="${1:-}"
   local platform architecture archive_format
   platform="$(detect_platform)"
   architecture="$(detect_architecture)"
+  archive_format="$(detect_archive_format)"
 
-  case "$platform" in
-    darwin) archive_format="zip" ;;
-    linux) archive_format="tar.gz" ;;
-  esac
-
-  echo "${TOOL_NAME}_${platform}_${architecture}.${archive_format}"
+  if [ -n "$version" ]; then
+    echo "${TOOL_NAME}_${version}_${platform}_${architecture}.${archive_format}"
+  else
+    echo "${TOOL_NAME}_${platform}_${architecture}.${archive_format}"
+  fi
 }
 
 release_url() {
-  local version filename
-  version="$(resolve_version "$1")"
-  filename="$(release_filename)"
+  local version="$1"
+  local filename="$2"
   echo "${GH_REPO}/releases/download/v${version}/${filename}"
 }
 
@@ -89,30 +96,34 @@ download_release() {
   local version filename url
   version="$(resolve_version "$1")"
   filename="$2"
-  url="$(release_url "$version")"
 
   echo "Downloading ${TOOL_NAME} release ${version}..."
-  curl "${curl_opts[@]}" -o "$filename" -C - "$url" ||
-    fail "Could not download ${url}"
+
+  url="$(release_url "$version" "$(release_filename "$version")")"
+  if curl "${curl_opts[@]}" -o "$filename" -C - "$url"; then
+    return 0
+  fi
+
+  url="$(release_url "$version" "$(release_filename)")"
+  if curl "${curl_opts[@]}" -o "$filename" -C - "$url"; then
+    return 0
+  fi
+
+  fail "Could not download any release archive for version ${version}"
 }
 
 install_version() {
   local install_type="$1"
   local version="$2"
   local install_path="${3%/bin}/bin"
-  local resolved_version platform archive_format
+  local resolved_version archive_format
 
   if [ "$install_type" != "version" ]; then
     fail "asdf-${TOOL_NAME} supports release installs only"
   fi
 
   resolved_version="$(resolve_version "$version")"
-  platform="$(detect_platform)"
-
-  case "$platform" in
-    darwin) archive_format="zip" ;;
-    linux) archive_format="tar.gz" ;;
-  esac
+  archive_format="$(detect_archive_format)"
 
   (
     mkdir -p "$install_path"
